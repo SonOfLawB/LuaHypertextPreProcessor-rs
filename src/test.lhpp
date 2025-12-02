@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Title</title>
+</head>
+<body>
+    <p>
+        I want atleast
+        <lua>
+            local output_string = "";
+            for i = 0, 100, 1 do
+                output_string = output_string .. " Hello: " .. i .. " ";
+            end
+
+            return output_string;
+        </lua>
+        dollars
+    </p>
+</body>
+</html>

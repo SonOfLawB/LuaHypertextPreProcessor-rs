@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display, fs::File, io::Read};
+use std::{error::Error, fmt::Display, fs::File, io::{Read, Write, stdout}};
 
 use httparse::{EMPTY_HEADER, Request};
 use mlua::{Lua, LuaOptions, StdLib};
@@ -62,7 +62,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     file_handler.read_to_string(&mut file_as_string)?;
 
-    print!("{}", execute_file(&file_as_string, &request_string.unwrap()).unwrap());
+    stdout()
+        .write_all(execute_file(&file_as_string, request_string)?.as_bytes())
+            .expect("Failed to write to stdout");
     
     Ok(())
 }
@@ -101,7 +103,7 @@ fn get_codeblock_positions<'a> (input: &'a str) -> Result<Vec<LuaBlockMarker<'a>
     Ok(positions)
 }
 
-fn execute_file(file_str: &str, request_string: &str) -> Result<String, Box<dyn  Error>>
+fn execute_file(file_str: &str, request_string: Option<String>) -> Result<String, Box<dyn  Error>>
 {
      let code_blocks = get_codeblock_positions(file_str)?;
     
@@ -110,26 +112,31 @@ fn execute_file(file_str: &str, request_string: &str) -> Result<String, Box<dyn 
 
     let lua_interpeter = Lua::new_with(StdLib::ALL_SAFE, lua_options)?;
 
-    let mut header_slice = [EMPTY_HEADER; 1000];
-    let mut request: Request<'_, '_> = Request::new(&mut header_slice);
+    if request_string.is_some() {
+        let request_string = request_string.unwrap();
 
-    let body_offset = request.parse(&request_string.as_bytes())?.unwrap();
+        let mut header_slice = [EMPTY_HEADER; 1000];
+        let mut request: Request<'_, '_> = Request::new(&mut header_slice);
 
-    let global_table = lua_interpeter.globals();
+        let body_offset = request.parse(&request_string.as_bytes())?.unwrap();
 
-    global_table.set("_PATH", request.path.expect("Expected Valid Path"))?;
-    global_table.set("_METHOD", request.method.expect("Expected Valid Method"))?;
-    global_table.set("_VERSION", request.version.expect("Expected valid version"))?;
+        let global_table = lua_interpeter.globals();
 
-    let header_table = lua_interpeter.create_table().unwrap();
+        global_table.set("_PATH", request.path.expect("Expected Valid Path"))?;
+        global_table.set("_METHOD", request.method.expect("Expected Valid Method"))?;
+        global_table.set("_VERSION", request.version.expect("Expected valid version"))?;
 
-    for header in request.headers
-    {
-        header_table.set(header.name, String::from_utf8_lossy(header.value))?;
+        let header_table = lua_interpeter.create_table().unwrap();
+
+        for header in request.headers
+        {
+            header_table.set(header.name, String::from_utf8_lossy(header.value))?;
+        }
+
+        global_table.set("_HEADERS", header_table).unwrap();
+        global_table.set("_BODY", &request_string[body_offset..]).unwrap();
     }
 
-    global_table.set("_HEADERS", header_table).unwrap();
-    global_table.set("_BODY", &request_string[body_offset..]).unwrap();
 
     let mut final_string_buffer = String::new();
     let mut last_block_end_pos = 0;

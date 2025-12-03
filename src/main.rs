@@ -125,15 +125,15 @@ fn execute_file(file_str: &str, request_string: Option<String>) -> Result<String
         global_table.set("_METHOD", request.method.expect("Expected Valid Method"))?;
         global_table.set("_VERSION", request.version.expect("Expected valid version"))?;
 
-        let header_table = lua_interpeter.create_table().unwrap();
+        let header_table = lua_interpeter.create_table()?;
 
         for header in request.headers
         {
             header_table.set(header.name, String::from_utf8_lossy(header.value))?;
         }
 
-        global_table.set("_HEADERS", header_table).unwrap();
-        global_table.set("_BODY", &request_string[body_offset..]).unwrap();
+        global_table.set("_HEADERS", header_table)?;
+        global_table.set("_BODY", &request_string[body_offset..])?;
     }
 
 

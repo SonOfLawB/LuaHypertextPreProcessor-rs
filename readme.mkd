@@ -1,0 +1,22 @@
+# How to use
+
+# program must be passed args like this
+lhpp \<path to lhpp file> \<entire-request-as-string>
+
+e.g your/user/path/test.lhpp "GET / HTTP9.9 \r\n HEADERS: BRUH \r\n body body body \r\n"
+
+program will write processed string to stdout
+
+# LUA VARIABLES
+
+### There are 4 important global variables
+
+_PATH - The request path
+
+_VERSION - the request http version
+
+_HEADERS - a lua table of request headers
+
+_METHOD - the request method
+
+_BODY - the body of the request

@@ -1,3 +1,4 @@
+use core::error;
 use std::{error::Error, fmt::Display, fs::File, io::Read};
 
 use httparse::{EMPTY_HEADER, Request};
@@ -63,53 +64,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     file_handler.read_to_string(&mut file_as_string)?;
 
 
-    let code_blocks = get_codeblock_positions(&file_as_string)?;
-    
-
-    let lua_interpeter = Lua::new_with(StdLib::NONE, LuaOptions::new())?;
-
-    if request_string.is_some()
-    {
-        let mut header_slice = [EMPTY_HEADER; 1000];
-        let mut request = Request::new(&mut header_slice);
-        let requst_str = request_string.unwrap();
-
-        request.parse(requst_str.as_bytes())?;
-
-        let global_table = lua_interpeter.globals();
-    
-        global_table.set("PATH", request.path.expect("Expected Valid Path"))?;
-        global_table.set("METHOD", request.method.expect("Expected Valid Method"))?;
-        global_table.set("VERSION", request.version.expect("Expected valid version"))?;
-
-        let header_table = lua_interpeter.create_table().unwrap();
-
-        for header in request.headers
-        {
-            header_table.set(header.name, String::from_utf8_lossy(header.value))?;
-        }
-        global_table.set("HEADERS", header_table).unwrap();
-    }
-
-
-    let mut final_string_buffer = String::new();
-    let mut last_block_end_pos = 0;
-
-    for code_block in code_blocks
-    {
-        let preceding = &file_as_string[last_block_end_pos .. code_block.start_position];
-        last_block_end_pos = code_block.end_position + LUA_ENDBLOCK_SIZE;
-
-        final_string_buffer.push_str(preceding);
-
-        let lua_chunk = lua_interpeter.load(code_block.data);
-        let output_string: String = lua_chunk.eval()?;
-        final_string_buffer.push_str(&output_string);
-    }
-
-    final_string_buffer.push_str(&file_as_string[last_block_end_pos .. file_as_string.len()]);
-
-    print!("{}", final_string_buffer);
+   
+    print!("{}", execute_file(&file_as_string, &request_string.unwrap()).unwrap());
     
     Ok(())
 }
@@ -146,4 +102,52 @@ fn get_codeblock_positions<'a> (input: &'a str) -> Result<Vec<LuaBlockMarker<'a>
     }
 
     Ok(positions)
+}
+
+fn execute_file(file_str: &str, request_string: &str) -> Result<String, Box<dyn  Error>>
+{
+     let code_blocks = get_codeblock_positions(file_str)?;
+    
+
+    let lua_interpeter = Lua::new_with(StdLib::ALL_SAFE, LuaOptions::new())?;
+
+    let mut header_slice = [EMPTY_HEADER; 1000];
+    let mut request: Request<'_, '_> = Request::new(&mut header_slice);
+
+    let body_offset = request.parse(&request_string.as_bytes())?.unwrap();
+
+    let global_table = lua_interpeter.globals();
+
+    global_table.set("_PATH", request.path.expect("Expected Valid Path"))?;
+    global_table.set("_METHOD", request.method.expect("Expected Valid Method"))?;
+    global_table.set("_VERSION", request.version.expect("Expected valid version"))?;
+
+    let header_table = lua_interpeter.create_table().unwrap();
+
+    for header in request.headers
+    {
+        header_table.set(header.name, String::from_utf8_lossy(header.value))?;
+    }
+
+    global_table.set("_HEADERS", header_table).unwrap();
+    global_table.set("_BODY", &request_string[body_offset..]).unwrap();
+
+    let mut final_string_buffer = String::new();
+    let mut last_block_end_pos = 0;
+
+    for code_block in code_blocks
+    {
+        let preceding = &file_str[last_block_end_pos .. code_block.start_position];
+        last_block_end_pos = code_block.end_position + LUA_ENDBLOCK_SIZE;
+
+        final_string_buffer.push_str(preceding);
+
+        let lua_chunk = lua_interpeter.load(code_block.data);
+        let output_string: String = lua_chunk.eval()?;
+        final_string_buffer.push_str(&output_string);
+    }
+
+    final_string_buffer.push_str(&file_str[last_block_end_pos .. file_str.len()]);
+
+    Ok(final_string_buffer)
 }

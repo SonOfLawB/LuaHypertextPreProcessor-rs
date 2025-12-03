@@ -1,4 +1,3 @@
-use core::error;
 use std::{error::Error, fmt::Display, fs::File, io::Read};
 
 use httparse::{EMPTY_HEADER, Request};
@@ -63,8 +62,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     file_handler.read_to_string(&mut file_as_string)?;
 
-
-   
     print!("{}", execute_file(&file_as_string, &request_string.unwrap()).unwrap());
     
     Ok(())
@@ -108,8 +105,10 @@ fn execute_file(file_str: &str, request_string: &str) -> Result<String, Box<dyn 
 {
      let code_blocks = get_codeblock_positions(file_str)?;
     
+    let mut lua_options = LuaOptions::new();
+    lua_options = lua_options.catch_rust_panics(true);
 
-    let lua_interpeter = Lua::new_with(StdLib::ALL_SAFE, LuaOptions::new())?;
+    let lua_interpeter = Lua::new_with(StdLib::ALL_SAFE, lua_options)?;
 
     let mut header_slice = [EMPTY_HEADER; 1000];
     let mut request: Request<'_, '_> = Request::new(&mut header_slice);

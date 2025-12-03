@@ -1,4 +1,24 @@
 # How to use
+```html
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Document</title>
+    </head>
+    <body>
+        <p>
+            <lua>
+                local hi = "Hello, World!"
+                return _PATH .. " " .. _VERSION .. " " .. _METHOD .. " " .. _BODY .. hi;
+            </lua>
+        </p>
+    </body>
+    </html>
+```
+
+LHPP will execute the lua block, and replace it with the returned output.
 
 # program must be passed args like this
 lhpp \<path to lhpp file> \<entire-request-as-string>
@@ -20,3 +40,9 @@ _HEADERS - a lua table of request headers
 _METHOD - the request method
 
 _BODY - the body of the request
+
+# Execution Arguments
+
+
+
+### Licensed Under GPL V3

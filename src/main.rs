@@ -49,10 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut args = std::env::args();
 
-    let _exec_path = args.next().unwrap();
+    let _exec_path = args.next().expect("Execution path");
 
     let target_file_path = args.next().expect("Missing target file!");
-    println!("{:?}", target_file_path);
 
     let mut file_handler = File::open(&target_file_path)?;
 
